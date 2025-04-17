@@ -1,58 +1,40 @@
 from django.db import models
 from django.contrib.auth.models import User
+from app_orders.models import PickupPoint
 
-# Create your models here.
-
-"""
-Назначение: Управление пользователями и адресами.
-Типичные запросы:
-* Поиск профиля по пользователю.
-* Фильтрация адресов по пользователю или is_default.
-"""
-
+# Профиль пользователя для клиентов, продавцов, администраторов и сотрудников ПВЗ
 class UserProfile(models.Model):
-    """
-    Описание полей:
-    * Связь OneToOneField с User для уникального профиля.
-    * phone — опциональное поле для контактных данных.
-    * role — поле для разделения ролей (покупатель, продавец, администратор). Для простоты используем choices, но можно заменить на Group из Django, если потребуется гибкость.
-    * created_at — для отслеживания времени регистрации.
-    """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    phone = models.CharField(max_length=20, blank=True, null=True)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )  # Связь 1:1 с Django User
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True
+    )  # Телефон, необязательный
     role = models.CharField(
         max_length=20,
-        choices=[('buyer', 'Покупатель'), ('seller', 'Продавец'), ('admin', 'Администратор')],
-        default='buyer',
-        db_index=True  # Индекс для фильтрации по ролям
-    )
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)  # Индекс для сортировки
+        choices=[
+            ('buyer', 'Покупатель'),
+            ('seller', 'Продавец'),
+            ('admin', 'Администратор'),
+            ('pp_staff', 'Сотрудник ПВЗ'),
+        ],
+        default='buyer'
+    )  # Роль пользователя: клиент, продавец, админ или сотрудник ПВЗ
+    pickup_point = models.ForeignKey(
+        PickupPoint,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff',
+        help_text='ПВЗ, к которому привязан сотрудник (только для роли pp_staff)'
+    )  # ПВЗ для сотрудников ПВЗ, null для других ролей
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )  # Время создания профиля
 
     def __str__(self):
-        return f"{self.user.username}'s profile"
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', 'role']),  # Составной индекс для поиска профиля по пользователю и роли
-        ]
-
-class Address(models.Model):
-    """
-    * Связь ForeignKey с User для хранения нескольких адресов.
-    * is_default — для указания основного адреса доставки.
-    * Поля минимальны: город, улица, почтовый индекс (опционально).
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
-    city = models.CharField(max_length=100, db_index=True)  # Индекс для фильтрации по городу
-    street = models.CharField(max_length=200)
-    postal_code = models.CharField(max_length=20, blank=True, null=True)
-    is_default = models.BooleanField(default=False, db_index=True)  # Индекс для фильтрации по умолчанию
-
-    def __str__(self):
-        return f"{self.city}, {self.street}"
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', 'is_default']),  # Составной индекс для поиска адресов пользователя по is_default
-        ]
-
+        return f"Profile of {self.user.username}"
