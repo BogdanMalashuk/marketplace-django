@@ -31,34 +31,29 @@ def api_root(request):
 
 
 urlpatterns = [
-    # Корень → API root
+    # Корень → редирект на API
     path('', RedirectView.as_view(url='/api/'), name='root-redirect'),
 
     # Админка
     path('admin/', admin.site.urls),
 
-    # API root
+    # API
     path('api/', api_root, name='api-root'),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # === API endpoints ===
-    path('api/products/', include(('app_products.urls',  'products'), namespace='products-api')),
-    path('api/orders/',   include(('app_orders.urls',    'orders'),   namespace='orders-api')),
-    path('api/shops/',    include(('app_shops.urls',     'shops'),    namespace='shops-api')),
-    path('api/users/',    include(('app_users.urls',     'users'),    namespace='users-api')),
+    # API endpoints через приложение "api"
+    path('api/', include('api.urls')),
 
-    # Документация
-    path('api/schema/', SpectacularAPIView.as_view(),                name='schema'),
-    path('api/docs/',   SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
-    path('api/redoc/',  SpectacularRedocView.as_view(url_name='schema'),   name='redoc'),
-
-    # === Web-routes (HTML) ===
-    path('products/', include(('app_products.urls',  'products'), namespace='products-web')),
-    path('cart/',     include(('app_orders.urls',    'orders'),   namespace='orders-web')),
-    path('shops/',    include(('app_shops.urls',     'shops'),    namespace='shops-web')),
-    path('users/',    include(('app_users.urls',     'users'),    namespace='users-web')),
+    # Web-маршруты (HTML-интерфейсы)
+    path('products/', include(('app_products.urls', 'products'), namespace='products-web')),
+    path('cart/',     include(('app_orders.urls',   'orders'),   namespace='orders-web')),
+    path('shops/',    include(('app_shops.urls',    'shops'),    namespace='shops-web')),
+    path('users/',    include(('app_users.urls',    'users'),    namespace='users-web')),
 ]
 
-# Статика/медиа только в DEBUG
+# Статика и медиа-файлы в режиме DEBUG
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
