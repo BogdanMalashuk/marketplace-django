@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from app_admin.models import AdminUser  # Примерная модель
+from app_admin.models import AdminUser
 
 class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdminUser
-        fields = '__all__'
+        fields = "__all__"
