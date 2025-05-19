@@ -27,16 +27,19 @@ def api_root(request):
 
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='/api/'), name='root-redirect'),
-    path('admin/', admin.site.urls),
+    # 1) Единый API‑роутинг
+    path('api/', include('api.urls')),
 
+    # 2) Документация и корень API
     path('api/', api_root, name='api-root'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    path('api/', include('api.urls')),
+    # 3) Django‑админка
+    path('admin/', admin.site.urls),
 
+    # 4) Веб‑интерфейсы
     path('products/', include(('app_products.urls', 'products'), namespace='products-web')),
     path('cart/', include(('app_orders.urls', 'orders'), namespace='orders-web')),
     path('shops/', include(('app_shops.urls', 'shops'), namespace='shops-web')),
