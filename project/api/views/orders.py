@@ -9,6 +9,7 @@ from api.serializers.orders import (
 )
 from app_orders.models import Cart, CartItem, Order, OrderItem
 
+
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
@@ -19,6 +20,7 @@ class CartViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
 
 class CartItemViewSet(viewsets.ModelViewSet):
     queryset = CartItem.objects.all()
@@ -32,36 +34,39 @@ class CartItemViewSet(viewsets.ModelViewSet):
         cart, _ = Cart.objects.get_or_create(user=self.request.user)
         serializer.save(cart=cart)
 
+
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
-        if self.action=='create':
+        if self.action == 'create':
             return OrderCreateSerializer
         return super().get_serializer_class()
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
+        return self.queryset.filter(user=self.request.user).select_related('shop', 'pickup_point').prefetch_related(
+            'items__product')
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         order = self.get_object()
-        if order.status not in ['pending','confirmed']:
-            return Response({'error':'Cannot cancel'}, status=status.HTTP_400_BAD_REQUEST)
-        order.status='canceled'
+        if order.user != request.user:
+            return Response({'error': 'Forbidden'}, status=403)
+        if order.status not in ['pending', 'confirmed']:
+            return Response({'error': 'Cannot cancel at this stage'}, status=status.HTTP_400_BAD_REQUEST)
+        order.status = 'canceled'
         order.save()
-        return Response({'status':'canceled'})
+        return Response({'status': 'canceled'})
 
     def perform_create(self, serializer):
         cart = Cart.objects.get(user=self.request.user)
         order = serializer.save(user=self.request.user)
-        for item in cart.items.all():
-            OrderItem.objects.create(
-                order=order,
-                product=item.product,
-                quantity=item.quantity,
-                price=item.product.price
-            )
-        cart.items.all().delete()
+        items = cart.items.all()
+        objs = [
+            OrderItem(order=order, product=i.product, quantity=i.quantity, price=i.product.price)
+            for i in items
+        ]
+        OrderItem.objects.bulk_create(objs)
+        items.delete()

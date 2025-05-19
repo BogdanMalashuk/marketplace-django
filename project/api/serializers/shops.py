@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from app_shops.models import Shop
-from app_shops.models import ShopCreationRequest
 
 class ShopListSerializer(serializers.ModelSerializer):
     class Meta:

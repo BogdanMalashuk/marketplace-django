@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Count
@@ -18,22 +18,17 @@ class ShopViewSet(viewsets.ModelViewSet):
     filterset_fields = ['owner', 'is_active']
 
     def get_serializer_class(self):
-        return {
+        mapping = {
             'create': ShopCreateSerializer,
             'list': ShopListSerializer,
             'retrieve': ShopDetailSerializer,
             'update': ShopUpdateSerializer,
             'partial_update': ShopUpdateSerializer,
-        }.get(self.action, ShopDetailSerializer)
+        }
+        return mapping.get(self.action, ShopDetailSerializer)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
-
-    def check_object_permissions(self, request, obj):
-        super().check_object_permissions(request, obj)
-        if request.method in ['PUT', 'PATCH', 'DELETE']:
-            if obj.owner != request.user and not request.user.is_staff:
-                self.permission_denied(request, message="No permission", code=status.HTTP_403_FORBIDDEN)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def activate(self, request, pk=None):
