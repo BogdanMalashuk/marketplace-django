@@ -9,13 +9,14 @@ from api.serializers.shops import (
     ShopCreateSerializer, ShopUpdateSerializer
 )
 from app_shops.models import Shop
+from .permissions import IsShopOwnerOrReadOnly
 
 
 class ShopViewSet(viewsets.ModelViewSet):
     queryset = Shop.objects.annotate(product_count=Count('products'))
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['owner', 'is_active']
+    permission_classes = [IsShopOwnerOrReadOnly]
 
     def get_serializer_class(self):
         mapping = {

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
-from .views import UserProfileViewSet, UserViewSet
+from api.views.users import UserProfileViewSet, UserViewSet
 
 app_name = 'users'
 

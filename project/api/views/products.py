@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Avg, Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
-
+from .permissions import IsShopOwnerOrReadOnly
 from api.serializers.products import (
     CategorySerializer,
     ProductListSerializer,
@@ -41,7 +41,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     filterset_fields = ['shop', 'category', 'is_active']
     search_fields = ['name', 'description']
     ordering_fields = ['price', 'created_at']
-
+    permission_classes = [IsShopOwnerOrReadOnly]
     def get_serializer_class(self):
         if self.action == 'list':
             return ProductListSerializer

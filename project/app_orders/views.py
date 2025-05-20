@@ -1,91 +1,13 @@
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
-from .serializers import (
-    CartSerializer, CartItemSerializer,
-    OrderSerializer, OrderCreateSerializer
-)
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-import json
-from django.shortcuts import render, redirect, get_object_or_404
-from .models import Cart, CartItem, Order, OrderItem
-from app_products.models import Product
-from .forms import OrderStatusUpdateForm, OrderCreate
 from django.db import transaction
-
-
-class CartViewSet(viewsets.ModelViewSet):
-    queryset = Cart.objects.all()
-    serializer_class = CartSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-
-class CartItemViewSet(viewsets.ModelViewSet):
-    queryset = CartItem.objects.all()
-    serializer_class = CartItemSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return self.queryset.filter(cart__user=self.request.user)
-
-    def perform_create(self, serializer):
-        cart, _ = Cart.objects.get_or_create(user=self.request.user)
-        serializer.save(cart=cart)
-
-
-class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return OrderCreateSerializer
-        return super().get_serializer_class()
-
-    def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
-
-    @action(detail=True, methods=['post'])
-    def cancel(self, request, pk=None):
-        """Отмена заказа"""
-        order = self.get_object()
-        if order.status not in ['pending', 'confirmed']:
-            return Response(
-                {'error': 'Order cannot be canceled at this stage'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        order.status = 'canceled'
-        order.save()
-        return Response({'status': 'order canceled'})
-
-    def perform_create(self, serializer):
-        cart = Cart.objects.get(user=self.request.user)
-        if not cart.items.exists():
-            raise serializers.ValidationError("Cart is empty")
-
-        order = serializer.save(user=self.request.user)
-
-        for item in cart.items.all():
-            OrderItem.objects.create(
-                order=order,
-                product=item.product,
-                quantity=item.quantity,
-                price=item.product.price
-            )
-
-        cart.items.all().delete()
-
+import json
+from .models import Cart, CartItem, Order
+from .forms import OrderStatusUpdateForm, OrderCreate
+from app_products.models import Product
 
 @require_POST
 @csrf_exempt
@@ -109,7 +31,6 @@ def toggle_cart_item(request):
         CartItem.objects.create(cart=cart, product=product, quantity=1)
         return JsonResponse({"success": True, "in_cart": True})
 
-
 @require_POST
 def cart_remove(request):
     item_id = request.POST.get('item_id')
@@ -123,7 +44,6 @@ def cart_remove(request):
     except CartItem.DoesNotExist:
         return JsonResponse({'success': False}, status=404)
 
-
 @login_required
 def cart_view(request):
     cart, created = Cart.objects.get_or_create(user=request.user)
@@ -135,7 +55,6 @@ def cart_view(request):
         'items': items,
         'total_price': total_price,
     })
-
 
 @require_POST
 def cart_update_quantity(request):
@@ -172,7 +91,6 @@ def cart_update_quantity(request):
     except CartItem.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Item not found'})
 
-
 def order_detail_view(request, order_id):
     order = get_object_or_404(Order, id=order_id)
 
@@ -180,7 +98,7 @@ def order_detail_view(request, order_id):
         form = OrderStatusUpdateForm(request.POST, instance=order)
         if form.is_valid():
             form.save()
-            return redirect('order-detail', order_id=order_id)  # правильно
+            return redirect('order-detail', order_id=order_id)
     else:
         form = OrderStatusUpdateForm(instance=order)
 
@@ -188,7 +106,6 @@ def order_detail_view(request, order_id):
         'order': order,
         'form': form
     })
-
 
 @login_required
 @transaction.atomic
@@ -249,7 +166,6 @@ def order_create(request):
         'form': form,
         'items': selected_items,
     })
-
 
 @login_required
 def my_orders_view(request):

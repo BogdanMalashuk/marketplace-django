@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
+from .permissions import IsPickupPointWorkerOrReadOnly
 from api.serializers.orders import (
     CartSerializer,
     CartItemSerializer,
@@ -17,7 +17,7 @@ class CartViewSet(viewsets.ModelViewSet):
     CRUD для корзины пользователя.
     """
     serializer_class = CartSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPickupPointWorkerOrReadOnly]
 
     def get_queryset(self):
         # возвращаем только корзину текущего пользователя
