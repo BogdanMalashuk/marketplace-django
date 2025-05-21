@@ -1,8 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
 from api.views.admin import AdminUserViewSet
-from api.views.users import UserViewSet, UserProfileViewSet
+from api.views.users import UserViewSet, UserProfileViewSet, PickupPointViewSet
 from api.views.shops import ShopViewSet
 from api.views.products import CategoryViewSet, ProductViewSet, ReviewViewSet
 from api.views.orders import CartViewSet, CartItemViewSet, OrderViewSet
@@ -18,5 +17,8 @@ router.register(r'reviews', ReviewViewSet, basename='review')
 router.register(r'carts', CartViewSet, basename='cart')
 router.register(r'cart-items', CartItemViewSet, basename='cart-item')
 router.register(r'orders', OrderViewSet, basename='order')
+router.register(r'pickup-points', PickupPointViewSet, basename='pickup-point')
 
-urlpatterns = [path('', include(router.urls)), ]
+urlpatterns = [
+    path('', include(router.urls)),
+]
