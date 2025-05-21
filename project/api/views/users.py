@@ -5,16 +5,9 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from api.serializers.users import (
-    UserBasicSerializer, UserProfileSerializer, ShopSerializer,
-    ProductSerializer, PickupPointSerializer, OrderSerializer
-)
+from api.serializers.users import UserBasicSerializer, UserProfileSerializer, PickupPointSerializer
 from app_users.models import UserProfile, PickupPoints
-from app_shops.models import Shop, Product
-from app_orders.models import Order
-from api.permissions import (
-    IsShopOwnerOrReadOnly, IsPickupPointWorkerOrReadOnly, IsAdminOrSuperuser
-)
+from api.views.permissions import IsPickupPointWorkerOrReadOnly, IsAdminOrSuperuser
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -74,43 +67,6 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class ShopViewSet(viewsets.ModelViewSet):
-    """
-    CRUD для магазинов. Продавцы могут редактировать свои магазины, остальные — только читать.
-    Админы имеют полный доступ.
-    """
-    queryset = Shop.objects.all()
-    serializer_class = ShopSerializer
-    permission_classes = [IsShopOwnerOrReadOnly | IsAdminOrSuperuser]
-
-    def get_queryset(self):
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return self.queryset
-        return self.queryset.filter(owner=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
-
-
-class ProductViewSet(viewsets.ModelViewSet):
-    """
-    CRUD для товаров. Продавцы могут управлять товарами в своих магазинах, остальные — только читать.
-    Админы имеют полный доступ.
-    """
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-    permission_classes = [IsShopOwnerOrReadOnly | IsAdminOrSuperuser]
-
-    def get_queryset(self):
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return self.queryset
-        return self.queryset.filter(shop__owner=self.request.user)
-
-    def perform_create(self, serializer):
-        shop = Shop.objects.get(id=self.request.data.get('shop'), owner=self.request.user)
-        serializer.save(shop=shop)
-
-
 class PickupPointViewSet(viewsets.ModelViewSet):
     """
     CRUD для пунктов выдачи. Работники ПВЗ могут управлять своим ПВЗ, остальные — только читать.
@@ -124,21 +80,3 @@ class PickupPointViewSet(viewsets.ModelViewSet):
         if self.request.user.is_staff or self.request.user.is_superuser:
             return self.queryset
         return self.queryset.filter(userprofile__user=self.request.user)
-
-
-class OrderViewSet(viewsets.ModelViewSet):
-    """
-    CRUD для заказов. Работники ПВЗ могут менять статус заказов своего ПВЗ, остальные — только читать.
-    Админы имеют полный доступ.
-    """
-    queryset = Order.objects.all()
-    serializer_class = OrderSerializer
-    permission_classes = [IsPickupPointWorkerOrReadOnly | IsAdminOrSuperuser]
-
-    def get_queryset(self):
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return self.queryset
-        return self.queryset.filter(pickup_point__userprofile__user=self.request.user)
-
-    def perform_update(self, serializer):
-        serializer.save(status=self.request.data.get('status'))

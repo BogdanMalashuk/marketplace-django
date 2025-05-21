@@ -2,20 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from app_shops.models import Shop
 from app_products.models import Category, Product, Review
-
-
-class ShopSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Shop
-        fields = ['id', 'name', 'logo']
-        read_only_fields = fields
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'first_name', 'last_name']
-        read_only_fields = fields
+from api.serializers.shops import ShopDetailSerializer
+from api.serializers.users import UserBasicSerializer
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -30,7 +18,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    shop = ShopSerializer(read_only=True)
+    shop = ShopDetailSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     average_rating = serializers.FloatField(read_only=True)
 
@@ -44,7 +32,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    shop = ShopSerializer(read_only=True)
+    shop = ShopDetailSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     average_rating = serializers.FloatField(read_only=True)
     review_count = serializers.IntegerField(read_only=True)
@@ -81,7 +69,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = UserBasicSerializer(read_only=True)
     product = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:

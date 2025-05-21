@@ -1,106 +1,84 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .permissions import IsPickupPointWorkerOrReadOnly
-from api.serializers.orders import (
-    CartSerializer,
-    CartItemSerializer,
-    OrderCreateSerializer,
-    OrderSerializer,
-)
+from rest_framework import viewsets, permissions
+from rest_framework.exceptions import ValidationError
+from api.serializers.orders import CartSerializer, CartItemSerializer, OrderSerializer, OrderCreateSerializer
 from app_orders.models import Cart, CartItem, Order, OrderItem
+from api.views.permissions import IsPickupPointWorkerOrReadOnly, IsAdminOrSuperuser
 
 
 class CartViewSet(viewsets.ModelViewSet):
     """
-    CRUD для корзины пользователя.
+    CRUD для корзин. Доступно только владельцу корзины.
     """
+    queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    permission_classes = [IsPickupPointWorkerOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # возвращаем только корзину текущего пользователя
-        return Cart.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        return self.queryset.filter(user=self.request.user)
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
     """
-    CRUD для позиций в корзине.
+    CRUD для элементов корзины. Доступно только владельцу корзины.
     """
+    queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # возвращаем только позиции корзины текущего пользователя
-        return CartItem.objects.filter(cart__user=self.request.user)
-
-    def perform_create(self, serializer):
-        # если корзина не существует — создаём
-        cart, _ = Cart.objects.get_or_create(user=self.request.user)
-        serializer.save(cart=cart)
+        return self.queryset.filter(cart__user=self.request.user)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
     """
-    CRUD для заказов:
-    - create: создаётся из корзины
-    - cancel: отмена заказа
+    CRUD для заказов. Работники ПВЗ могут менять статус заказов своего ПВЗ, остальные — только читать.
+    Админы имеют полный доступ.
     """
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
+    queryset = Order.objects.all()
+    permission_classes = [IsPickupPointWorkerOrReadOnly | IsAdminOrSuperuser]
 
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action in ['create']:
             return OrderCreateSerializer
-        return super().get_serializer_class()
+        return OrderSerializer
 
     def get_queryset(self):
-        # оптимизируем запрос: подтягиваем связь shop и pickup_point и детали позиций
-        return (
-            Order.objects
-            .filter(user=self.request.user)
-            .select_related('shop', 'pickup_point')
-            .prefetch_related('items__product')
-        )
-
-    @action(detail=True, methods=['post'])
-    def cancel(self, request, pk=None):
-        """
-        POST /api/orders/{pk}/cancel/
-        Отменить заказ, если он в статусе pending или confirmed.
-        """
-        order = self.get_object()
-        # проверяем право доступа
-        if order.user != request.user:
-            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        if order.status not in ['pending', 'confirmed']:
-            return Response(
-                {'error': 'Cannot cancel at this stage'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        order.status = 'canceled'
-        order.save()
-        return Response({'status': 'canceled'})
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return self.queryset
+        return self.queryset.filter(pickup_point__userprofile__user=self.request.user)
 
     def perform_create(self, serializer):
-        # создаём заказ из корзины текущего пользователя
-        cart = Cart.objects.get(user=self.request.user)
+        # Получаем корзину пользователя
+        try:
+            cart = Cart.objects.get(user=self.request.user)
+        except Cart.DoesNotExist:
+            raise ValidationError("Cart is empty or does not exist.")
+
+        # Проверяем, что корзина не пуста
+        cart_items = CartItem.objects.filter(cart=cart)
+        if not cart_items.exists():
+            raise ValidationError("Cart is empty.")
+
+        # Создаем заказ
         order = serializer.save(user=self.request.user)
-        # создаём OrderItem пачкой для оптимизации
-        items = cart.items.all()
-        order_items = [
-            OrderItem(
+
+        # Переносим товары из корзины в OrderItem
+        total_price = 0
+        for item in cart_items:
+            OrderItem.objects.create(
                 order=order,
                 product=item.product,
                 quantity=item.quantity,
                 price=item.product.price
             )
-            for item in items
-        ]
-        OrderItem.objects.bulk_create(order_items)
-        # очищаем корзину
-        items.delete()
+            total_price += item.product.price * item.quantity
+
+        # Обновляем total_price заказа
+        order.total_price = total_price
+        order.save()
+
+        # Очищаем корзину
+        cart_items.delete()
+
+    def perform_update(self, serializer):
+        serializer.save(status=self.request.data.get('status'))

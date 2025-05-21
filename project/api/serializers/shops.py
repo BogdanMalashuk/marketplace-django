@@ -2,11 +2,13 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from app_shops.models import Shop
 
+
 class UserBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name']
         read_only_fields = fields
+
 
 class ShopListSerializer(serializers.ModelSerializer):
     owner = UserBasicSerializer(read_only=True)
@@ -19,6 +21,7 @@ class ShopListSerializer(serializers.ModelSerializer):
             'logo', 'is_active', 'created_at', 'product_count'
         ]
         read_only_fields = fields
+
 
 class ShopCreateSerializer(serializers.ModelSerializer):
     owner = serializers.HiddenField(default=serializers.CurrentUserDefault())
@@ -35,6 +38,7 @@ class ShopCreateSerializer(serializers.ModelSerializer):
         if len(value) < 3:
             raise serializers.ValidationError("Name must be at least 3 characters long.")
         return value
+
 
 class ShopDetailSerializer(serializers.ModelSerializer):
     owner = UserBasicSerializer(read_only=True)
@@ -54,6 +58,7 @@ class ShopDetailSerializer(serializers.ModelSerializer):
             'is_active', 'product_count'
         ]
         read_only_fields = ['id', 'slug', 'created_at', 'product_count']
+
 
 class ShopUpdateSerializer(serializers.ModelSerializer):
     class Meta:

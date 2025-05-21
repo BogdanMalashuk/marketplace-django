@@ -1,46 +1,28 @@
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django.db.models import Count
-from django_filters.rest_framework import DjangoFilterBackend
-
-from api.serializers.shops import (
-    ShopListSerializer, ShopDetailSerializer,
-    ShopCreateSerializer, ShopUpdateSerializer
-)
+from rest_framework import viewsets
+from api.serializers.shops import ShopCreateSerializer, ShopDetailSerializer, ShopUpdateSerializer
 from app_shops.models import Shop
-from .permissions import IsShopOwnerOrReadOnly
+from api.views.permissions import IsShopOwnerOrReadOnly, IsAdminOrSuperuser
 
 
 class ShopViewSet(viewsets.ModelViewSet):
-    queryset = Shop.objects.annotate(product_count=Count('products'))
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['owner', 'is_active']
-    permission_classes = [IsShopOwnerOrReadOnly]
+    """
+    CRUD для магазинов. Продавцы могут редактировать свои магазины, остальные — только читать.
+    Админы имеют полный доступ.
+    """
+    queryset = Shop.objects.all()
+    permission_classes = [IsShopOwnerOrReadOnly | IsAdminOrSuperuser]
 
     def get_serializer_class(self):
-        mapping = {
-            'create': ShopCreateSerializer,
-            'list': ShopListSerializer,
-            'retrieve': ShopDetailSerializer,
-            'update': ShopUpdateSerializer,
-            'partial_update': ShopUpdateSerializer,
-        }
-        return mapping.get(self.action, ShopDetailSerializer)
+        if self.action in ['create']:
+            return ShopCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            return ShopUpdateSerializer
+        return ShopDetailSerializer
+
+    def get_queryset(self):
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return self.queryset
+        return self.queryset.filter(owner=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def activate(self, request, pk=None):
-        shop = self.get_object()
-        shop.is_active = True
-        shop.save()
-        return Response({'status': 'activated'})
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def deactivate(self, request, pk=None):
-        shop = self.get_object()
-        shop.is_active = False
-        shop.save()
-        return Response({'status': 'deactivated'})
