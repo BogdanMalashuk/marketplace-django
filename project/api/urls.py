@@ -10,7 +10,7 @@ from api.views.orders import CartViewSet, CartItemViewSet, OrderViewSet
 router = DefaultRouter()
 router.register(r'admin/users', AdminUserViewSet, basename='admin-user')
 router.register(r'users', UserViewSet, basename='user')
-router.register(r'profiles', UserProfileViewSet, basename='profile')
+router.register(r'profiles', UserProfileViewSet, basename='profiles')
 router.register(r'shops', ShopViewSet, basename='shop')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'products', ProductViewSet, basename='product')

@@ -1,10 +1,10 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-
 from api.serializers.users import UserBasicSerializer, UserProfileSerializer
 from app_users.models import UserProfile
 
@@ -32,19 +32,18 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated()]
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    @csrf_exempt
     def register(self, request):
         serializer = UserBasicSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = User.objects.create_user(
-            username=serializer.validated_data['username'],
-            email=serializer.validated_data.get('email', ''),
-            password=request.data.get('password')
-        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user = serializer.save()  # Используем метод create сериализатора
         UserProfile.objects.create(user=user, role=request.data.get('role', 'buyer'))
         return Response({'status': 'user created'}, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    @csrf_exempt
     def login(self, request):
         user = authenticate(
             username=request.data.get('username'),

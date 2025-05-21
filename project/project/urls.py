@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic.base import RedirectView
+from rest_framework.authtoken import views as authtoken_views
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
@@ -28,6 +28,7 @@ def api_root(request):
 urlpatterns = [
     # 1) Единый API‑роутинг
     path('api/', include('api.urls')),
+    path('api-token-auth/', authtoken_views.obtain_auth_token, name='api_token_auth'),
 
     # 2) Документация и корень API
     path('api/', api_root, name='api-root'),

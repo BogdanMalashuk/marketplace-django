@@ -2,6 +2,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
 from api.views.users import UserProfileViewSet, UserViewSet
+from django.urls import path
+from . import views
+from app_orders.views import order_detail_view
 
 app_name = 'users'
 
@@ -30,10 +33,6 @@ urlpatterns = [
     path('auth/', include(auth_urlpatterns)),
     path('auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]
-
-from django.urls import path
-from . import views
-from app_orders.views import order_detail_view
 
 urlpatterns = [
     path('register/', views.register, name='register'),
